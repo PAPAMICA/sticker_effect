@@ -17,6 +17,10 @@
 
 A web application that allows you to create sticker effects for PNG images with customizable borders, shadows and other effects.
 
+![sticker](stic1.png)
+
+![sticker](stic2.png)
+
 ## Features
 
 - Upload multiple PNG images at once
