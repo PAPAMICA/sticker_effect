@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticker Effect Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Fancybox -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+    <style>
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1
+        }
+        .htmx-request.htmx-indicator {
+            opacity: 1
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body.modal-active {
+            overflow-x: hidden;
+            overflow-y: visible !important;
+        }
+        /* Style pour Fancybox */
+        .fancybox__caption {
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 1rem;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem;
+        }
+        .fancybox__container {
+            --fancybox-bg: rgba(24, 24, 27, 0.95);
+        }
+    </style>
+</head>
+<body class="bg-gray-800 min-h-screen flex flex-col">
+    <div class="container mx-auto px-4 py-8 flex-grow">
+        <h1 class="text-4xl font-bold text-center mb-8 text-white">Sticker Effect Generator</h1>
+
+        <!-- Generator -->
+        <div class="max-w-md mx-auto bg-gray-700 rounded-lg shadow-lg p-6 mb-8">
+            <form hx-post="/process"
+                  hx-target="#gallery"
+                  hx-indicator="#loading"
+                  hx-swap="beforeend"
+                  enctype="multipart/form-data"
+                  class="space-y-6"
+                  id="stickerForm">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-grow">
+                        <label class="block text-sm font-medium text-gray-200 mb-2">Select PNG images</label>
+                        <input type="file" name="images" multiple accept="image/png"
+                               class="w-full px-3 py-2 bg-gray-600 text-gray-200 border border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-400">Only PNG files are accepted</p>
+                    </div>
+                    <button type="button"
+                            class="mt-6 p-2 bg-gray-600 rounded-full hover:bg-gray-500 transition-colors"
+                            onclick="toggleModal()">
+                        <svg class="w-6 h-6 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ring-offset-gray-700">
+                    Generate Stickers
+                </button>
+            </form>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+            <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-95"></div>
+
+            <div class="modal-container bg-gray-800 w-11/12 md:max-w-md mx-auto rounded-lg shadow-lg z-50 overflow-y-auto">
+                <div class="modal-content py-4 text-left px-6">
+                    <!-- Modal Header -->
+                    <div class="flex justify-between items-center pb-3">
+                        <p class="text-2xl font-bold text-gray-200">Settings</p>
+                        <button class="modal-close p-2 hover:bg-gray-700 rounded-full" onclick="toggleModal()">
+                            <svg class="fill-current text-gray-200" width="18" height="18" viewBox="0 0 18 18">
+                                <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Border -->
+                    <div class="space-y-4 mb-6">
+                        <h3 class="text-lg font-medium text-gray-200">Border</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">Border thickness</label>
+                            <input type="range" name="border_size" form="stickerForm" min="5" max="50" value="10"
+                                   class="w-full" oninput="this.nextElementSibling.value = this.value">
+                            <output class="block text-center mt-1 text-gray-200">10</output>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">Border smoothing</label>
+                            <input type="range" name="smoothing" form="stickerForm" min="0" max="10" value="3"
+                                   class="w-full" oninput="this.nextElementSibling.value = this.value">
+                            <output class="block text-center mt-1 text-gray-200">3</output>
+                        </div>
+                    </div>
+
+                    <!-- Shadow -->
+                    <div class="space-y-4 mb-6">
+                        <h3 class="text-lg font-medium text-gray-200">Shadow</h3>
+                        <div>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="enable_shadow" form="stickerForm" class="form-checkbox bg-gray-600 border-gray-500 rounded" checked>
+                                <span class="ml-2 text-gray-200">Add shadow</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">Shadow intensity</label>
+                            <input type="range" name="shadow_intensity" form="stickerForm" min="0" max="255" value="100"
+                                   class="w-full" oninput="this.nextElementSibling.value = this.value">
+                            <output class="block text-center mt-1 text-gray-200">100</output>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">Shadow X offset</label>
+                            <input type="range" name="shadow_offset_x" form="stickerForm" min="-50" max="50" value="0"
+                                   class="w-full" oninput="this.nextElementSibling.value = this.value">
+                            <output class="block text-center mt-1 text-gray-200">0</output>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">Shadow Y offset</label>
+                            <input type="range" name="shadow_offset_y" form="stickerForm" min="-50" max="50" value="0"
+                                   class="w-full" oninput="this.nextElementSibling.value = this.value">
+                            <output class="block text-center mt-1 text-gray-200">0</output>
+                        </div>
+                    </div>
+
+                    <!-- Size -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-200 mb-2">Maximum size</label>
+                        <select name="size" form="stickerForm" class="w-full px-3 py-2 bg-gray-600 text-gray-200 border border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="256">256px</option>
+                            <option value="512" selected>512px</option>
+                            <option value="1024">1024px</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading" class="htmx-indicator">
+            <div class="flex justify-center items-center mb-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                <span class="ml-3 text-white">Generating...</span>
+            </div>
+        </div>
+
+        <!-- Gallery -->
+        <div id="gallery" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Generated images will be displayed here -->
+        </div>
+
+        <!-- Gallery Actions -->
+        <div id="gallery-actions" class="w-full flex flex-col items-center mt-12 mb-8 hidden">
+            <div class="flex flex-row gap-4">
+                <button onclick="downloadVisibleImages()"
+                        class="inline-flex items-center px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-lg">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Download Gallery
+                </button>
+                <button onclick="clearGallery()"
+                        class="inline-flex items-center px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors shadow-lg">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Clear Gallery
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 py-8 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                <div class="text-gray-400 text-center md:text-left">
+                    <a href="https://mickaelasseline.com/" target="_blank" class="text-blue-400 hover:text-blue-300 inline-flex items-center">
+                        Created by Mickael Asseline
+                        <a href="https://github.com/PAPAMICA" target="_blank" class="text-gray-400 hover:text-white inline-flex items-center ml-2">
+                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+                            </svg>
+                        </a>
+                    </a>
+                </div>
+                <div class="text-gray-400 flex items-center space-x-2">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    <span class="font-medium">{{ "{:,}".format(views) }}</span>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <a href="https://github.com/PAPAMICA/sticker_effect"
+                       class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
+                        <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 .587l3.668 7.431 8.332 1.21-6.001 5.85 1.416 8.265L12 18.925l-7.415 3.918 1.416-8.265-6.001-5.85 8.332-1.21L12 .587z"/>
+                        </svg>
+                        Star on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="//unpkg.com/alpinejs" defer></script>
+    <script>
+        // Configuration de Fancybox
+        document.addEventListener("htmx:afterSwap", function(evt) {
+            // Met à jour la visibilité des boutons de la galerie
+            const galleryActions = document.getElementById('gallery-actions');
+            const hasImages = document.querySelectorAll('[id^="image-"]').length > 0;
+            galleryActions.classList.toggle('hidden', !hasImages);
+
+            // Configuration Fancybox existante
+            Fancybox.bind("[data-fancybox]", {
+                // General options
+                infinite: true,
+                hideScrollbar: false,
+                animated: true,
+                showClass: "fancybox-fadeIn",
+                hideClass: "fancybox-fadeOut",
+
+                // Toolbar
+                Toolbar: {
+                    display: {
+                        left: ["infobar"],
+                        middle: ["zoomIn", "zoomOut", "toggle1to1", "rotateCCW", "rotateCW"],
+                        right: ["slideshow", "download", "thumbs", "close"],
+                    },
+                },
+
+                // Zoom options
+                Zoom: {
+                    wheel: "slide",
+                    click: false,
+                    pinch: true
+                },
+
+                // Image options
+                Images: {
+                    zoom: true,
+                },
+
+                // Button translations
+                l10n: {
+                    CLOSE: "Close",
+                    NEXT: "Next",
+                    PREV: "Previous",
+                    MODAL: "You can close this modal with ESC key",
+                    ERROR: "Something went wrong, please try again later",
+                    IMAGE_ERROR: "Image not found",
+                    ELEMENT_NOT_FOUND: "HTML Element not found",
+                    AJAX_NOT_FOUND: "Error loading: %s",
+                    AJAX_FORBIDDEN: "Access forbidden: %s",
+                    IFRAME_ERROR: "Error loading page",
+                }
+            });
+        });
+
+        function toggleModal() {
+            const modal = document.querySelector('.modal');
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            document.body.classList.toggle('modal-active');
+        }
+
+        // Fonction pour supprimer une image
+        async function deleteImage(filename) {
+            if (!confirm('Are you sure you want to delete this image?')) return;
+            
+            try {
+                const response = await fetch(`/delete/${filename}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const element = document.getElementById(`image-${filename.split('/').pop()}`);
+                    element.remove();
+                    
+                    // Vérifie s'il reste des images et met à jour la visibilité des boutons
+                    const hasImages = document.querySelectorAll('[id^="image-"]').length > 0;
+                    const galleryActions = document.getElementById('gallery-actions');
+                    galleryActions.classList.toggle('hidden', !hasImages);
+                    
+                    if (!hasImages) {
+                        const gallery = document.getElementById('gallery');
+                        gallery.innerHTML = '';
+                    }
+                } else {
+                    alert('Error deleting image');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting image');
+            }
+        }
+
+        // Fonction pour tout supprimer
+        async function clearGallery() {
+            if (!confirm('Are you sure you want to delete all images?')) return;
+            
+            try {
+                const response = await fetch('/clear_all');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const gallery = document.getElementById('gallery');
+                    gallery.innerHTML = '';
+                    
+                    // Cache les boutons de la galerie
+                    const galleryActions = document.getElementById('gallery-actions');
+                    galleryActions.classList.add('hidden');
+                } else {
+                    alert('Error clearing gallery');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error clearing gallery');
+            }
+        }
+
+        // Fonction pour télécharger les images visibles
+        async function downloadVisibleImages() {
+            const visibleImages = document.querySelectorAll('[id^="image-"]');
+            const imageUrls = Array.from(visibleImages).map(img => {
+                const filename = img.id.replace('image-', '');
+                return `processed/${filename}`;
+            });
+
+            if (imageUrls.length === 0) {
+                alert('No images to download');
+                return;
+            }
+
+            try {
+                const response = await fetch('/download_all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ files: imageUrls })
+                });
+
+                if (response.ok) {
+                    // Convertit la réponse en blob et crée un lien de téléchargement
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'stickers.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Error downloading images');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error downloading images');
+            }
+        }
+    </script>
+</body>
+</html>
