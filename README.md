@@ -1,4 +1,19 @@
-# Sticker Effect Generator
+<p align="center">
+  <a href="https://mickaelasseline.com">
+    <img src="https://zupimages.net/up/20/04/7vtd.png" width="140px" alt="PAPAMICA" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="#"><img src="https://readme-typing-svg.herokuapp.com?center=true&vCenter=true&lines=Sticker+Effect+Generator;"></a>
+</p>
+
+<p align="center">
+  <a href="https://sticker.papamica.com">
+    <img src="https://img.shields.io/badge/Use_demo-online-blue?style=for-the-badge&logo=github" alt="Use demo online" />
+  </a>
+</p>
+
 
 A web application that allows you to create sticker effects for PNG images with customizable borders, shadows and other effects.
 
@@ -15,8 +30,17 @@ A web application that allows you to create sticker effects for PNG images with 
 - Delete individual stickers or clear gallery
 - Mobile-friendly interface
 
+## Deployment
+
+```
+git clone https://github.com/PAPAMICA/sticker_effect.git
+cd sticker_effect
+docker-compose up -d
+```
 
 ## Usage
+
+Demo: [https://sticker.papamica.com](https://sticker.papamica.com)
 
 1. Click "Select PNG images" to choose one or more PNG files
 2. Adjust settings (optional):
