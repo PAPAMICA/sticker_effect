@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  sticker:
+    build: .
+    volumes:
+      - ./app:/app
+    container_name: sticker
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+    restart: always
+    labels:
+      - "autoupdate=monitor" # https://github.com/PAPAMICA/container-updater
+      - "traefik.enable=true"
+      - "traefik.http.routers.sticker.rule=Host(`sticker.papamica.com`)"
+      - "traefik.http.routers.sticker.tls.certresolver=http"
+      - "traefik.http.services.sticker.loadbalancer.server.port=5000"
+      - "traefik.docker.network=proxy"
+    networks:
+      - default
+networks:
+  default:
+    external:
+      name: proxy
