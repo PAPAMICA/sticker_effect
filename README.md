@@ -28,6 +28,7 @@ A web application that allows you to create sticker effects for PNG images with 
 - Add customizable shadows with:
   - Adjustable intensity
   - X/Y offset controls
+- Fill holes in transparent areas for better sticker effect
 - Choose output size (256px, 512px or 1024px)
 - Preview generated stickers in gallery
 - Download individual stickers or entire gallery as ZIP
@@ -50,6 +51,7 @@ Demo: [https://sticker.papamica.com](https://sticker.papamica.com)
 2. Adjust settings (optional):
    - Border thickness (5-50px)
    - Border smoothing (0-10)
+   - Fill holes in image (for better sticker effect)
    - Shadow options (if enabled):
      - Intensity (0-255)
      - X/Y offset (-50px to +50px)

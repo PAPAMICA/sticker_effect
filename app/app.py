@@ -92,7 +92,7 @@ def create_peeled_corner(size, corner_size=50, color=(200, 200, 200, 255)):
     return corner_with_shadow
 
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
-                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0):
+                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=False):
     """Apply a sticker border effect to an image with advanced options"""
     # Open image
     img = Image.open(image).convert("RGBA")
@@ -108,7 +108,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     max_logo_height = final_height - total_margin
 
     # Resize image preserving aspect ratio to fit available space
-    img.thumbnail((max_logo_width, max_logo_height), Image.Resampling.LANCZOS)
+    img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
 
     # Add padding if needed (minimum 20px or border_size if larger)
     min_padding = max(20, border_size)
@@ -126,6 +126,20 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         if current_size % 2 == 0:
             current_size += 1
         white_border = white_border.filter(ImageFilter.MaxFilter(current_size))
+
+    if fill_holes:
+        # Fill holes in the alpha channel
+        alpha_filled = alpha.copy()
+        # Apply MinFilter to fill small holes
+        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(3))
+        # Apply MaxFilter to restore edges
+        alpha_filled = alpha_filled.filter(ImageFilter.MaxFilter(3))
+        # Create new image with filled alpha
+        img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        img_filled.paste(img, (0, 0))
+        r, g, b, a = img_filled.split()
+        img_filled = Image.merge("RGBA", (r, g, b, alpha_filled))
+        img = img_filled
 
     # Create shadow mask if enabled
     if enable_shadow:
@@ -178,7 +192,7 @@ def process():
     shadow_intensity = int(request.form.get("shadow_intensity", 100))
     shadow_offset_x = int(request.form.get("shadow_offset_x", 0))
     shadow_offset_y = int(request.form.get("shadow_offset_y", 0))
-    peeled_corner = request.form.get("peeled_corner") == "on"
+    fill_holes = request.form.get("fill_holes") == "on"
 
     files = request.files.getlist("images")
     processed_files = []
@@ -206,7 +220,8 @@ def process():
             enable_shadow=enable_shadow,
             shadow_intensity=shadow_intensity,
             shadow_offset_x=shadow_offset_x,
-            shadow_offset_y=shadow_offset_y
+            shadow_offset_y=shadow_offset_y,
+            fill_holes=fill_holes
         )
         processed_img.save(output_path, format="PNG")
         processed_files.append(output_path)
