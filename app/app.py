@@ -149,7 +149,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     final_width, final_height = size
 
     # Calculate all margins needed
-    border_margin = border_size * 2  # Double the border size for both sides
+    border_margin = border_size * 4  # Quadruple the border size to ensure enough space
     shadow_margin = (max(abs(shadow_offset_x), abs(shadow_offset_y)) + border_size) * 2 if enable_shadow else 0
     padding_margin = padding_size * 2  # Double the padding for both sides
 
@@ -182,7 +182,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Create and smooth mask for border
     border_mask = alpha.copy()
     # Apply MaxFilter multiple times with decreasing size for smoothing
-    filter_size = border_size + (1 - border_size % 2)
+    filter_size = border_size * 2  # Double the filter size for better border coverage
     for i in range(smoothing + 1):
         current_size = max(3, filter_size - (i * 2))
         if current_size % 2 == 0:
