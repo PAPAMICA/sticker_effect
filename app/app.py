@@ -204,24 +204,20 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         alpha_filled = fill_interior_holes(combined_alpha, border_rgba)
 
         # Create a mask for the holes only
-        holes_mask = Image.new("L", img.size, 0)
         holes_mask_data = np.array(alpha_filled) - np.array(combined_alpha)
+        # Binarize the mask - any positive difference becomes fully opaque
+        holes_mask_data = (holes_mask_data > 0) * 255
         holes_mask = Image.fromarray(holes_mask_data.astype('uint8'))
-        
-        # Apply a slight gaussian blur to the holes mask to smooth transitions
-        holes_mask = holes_mask.filter(ImageFilter.GaussianBlur(radius=1))
 
         # Create a color layer for the holes
         holes_layer = Image.new("RGBA", img.size, border_rgba)
-
-        # Apply the holes mask to the color layer
         holes_layer.putalpha(holes_mask)
 
         # Create holes layer at final size
         final_holes_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_holes_layer.paste(holes_layer, paste_position)
 
-        # Composite the holes with the result (on top of everything except shadow)
+        # Composite the holes with the result
         result = Image.alpha_composite(result, final_holes_layer)
 
     # Apply shadow if enabled (last step)
