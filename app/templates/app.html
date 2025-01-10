@@ -271,11 +271,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             const colorPicker = document.querySelector('input[name=border_color]');
             const colorText = document.querySelector('input[name=border_color_text]');
-            
+
             colorPicker.addEventListener('input', function(e) {
                 colorText.value = e.target.value.toUpperCase();
             });
-            
+
             colorText.addEventListener('input', function(e) {
                 let color = e.target.value;
                 if (color.startsWith('#')) {
@@ -355,20 +355,20 @@
         // Fonction pour supprimer une image
         async function deleteImage(filename) {
             if (!confirm('Are you sure you want to delete this image?')) return;
-            
+
             try {
                 const response = await fetch(`/delete/${filename}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const element = document.getElementById(`image-${filename.split('/').pop()}`);
                     element.remove();
-                    
+
                     // Vérifie s'il reste des images et met à jour la visibilité des boutons
                     const hasImages = document.querySelectorAll('[id^="image-"]').length > 0;
                     const galleryActions = document.getElementById('gallery-actions');
                     galleryActions.classList.toggle('hidden', !hasImages);
-                    
+
                     if (!hasImages) {
                         const gallery = document.getElementById('gallery');
                         gallery.innerHTML = '';
@@ -385,15 +385,15 @@
         // Fonction pour tout supprimer
         async function clearGallery() {
             if (!confirm('Are you sure you want to delete all images?')) return;
-            
+
             try {
                 const response = await fetch('/clear_all');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const gallery = document.getElementById('gallery');
                     gallery.innerHTML = '';
-                    
+
                     // Cache les boutons de la galerie
                     const galleryActions = document.getElementById('gallery-actions');
                     galleryActions.classList.add('hidden');
