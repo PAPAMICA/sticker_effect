@@ -102,17 +102,17 @@ def fill_interior_holes(alpha, color):
     """Fill interior holes with specified color"""
     # Convert alpha to numpy array
     alpha_np = np.array(alpha)
-    
+
     # Create binary mask (0 for transparent, 1 for non-transparent)
     binary = alpha_np > 128
-    
+
     # Create a mask for the exterior (flood fill from the borders)
     exterior_mask = np.zeros_like(binary, dtype=bool)
     exterior_mask[0, :] = ~binary[0, :]  # top edge
     exterior_mask[-1, :] = ~binary[-1, :]  # bottom edge
     exterior_mask[:, 0] = ~binary[:, 0]  # left edge
     exterior_mask[:, -1] = ~binary[:, -1]  # right edge
-    
+
     # Flood fill from the borders to identify exterior transparent regions
     from scipy import ndimage
     structure = ndimage.generate_binary_structure(2, 2)  # 8-connectivity
@@ -122,14 +122,17 @@ def fill_interior_holes(alpha, color):
         if np.array_equal(new_exterior, exterior_mask):
             break
         exterior_mask = new_exterior
-    
+
     # The holes are the transparent regions that are not part of the exterior
     holes = np.logical_and(~binary, ~exterior_mask)
     
+    # Dilate the holes by 3 pixels
+    holes = ndimage.binary_dilation(holes, iterations=3)
+
     # Create the output alpha channel
     result = alpha_np.copy()
     result[holes] = 255  # Fill holes with full opacity
-    
+
     return Image.fromarray(result)
 
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
@@ -138,7 +141,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     """Apply a sticker border effect to an image with advanced options"""
     # Convert hex color to RGBA
     border_rgba = hex_to_rgba(border_color)
-    
+
     # Open image
     img = Image.open(image).convert("RGBA")
 
@@ -191,25 +194,25 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         combined_alpha = Image.new("L", img.size, 0)
         combined_alpha.paste(alpha, (0, 0))
         combined_alpha.paste(255, (0, 0), border_mask)
-        
+
         # Fill interior holes considering the border
         alpha_filled = fill_interior_holes(combined_alpha, border_rgba)
-        
+
         # Create a mask for the holes only (difference between filled and original combined alpha)
         holes_mask = Image.new("L", img.size, 0)
         holes_mask.paste(alpha_filled, (0, 0))
         holes_mask.paste(0, (0, 0), combined_alpha)
-        
+
         # Create a color layer for the holes
         holes_layer = Image.new("RGBA", img.size, border_rgba)
-        
+
         # Apply the holes mask to the color layer
         holes_layer.putalpha(holes_mask)
-        
+
         # Create holes layer at final size
         final_holes_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_holes_layer.paste(holes_layer, paste_position)
-        
+
         # Composite the holes with the result
         result = Image.alpha_composite(result, final_holes_layer)
 
@@ -223,14 +226,14 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         shadow = border_mask.copy()
         # Apply gaussian blur to soften shadow
         shadow = shadow.filter(ImageFilter.GaussianBlur(radius=border_size / 2))
-        
+
         shadow_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         shadow_position = (
             center_x + shadow_offset_x,
             center_y + shadow_offset_y
         )
         shadow_layer.paste((0, 0, 0, shadow_intensity), shadow_position, shadow)
-        
+
         # Create a new result image with shadow as background
         final_result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_result = Image.alpha_composite(final_result, shadow_layer)
