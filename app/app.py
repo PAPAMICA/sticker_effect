@@ -161,35 +161,32 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     if fill_holes:
         # Fill interior holes with border color
         alpha_filled = fill_interior_holes(alpha, border_rgba)
-        # Create new image with filled alpha
-        img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        r, g, b, _ = img.split()
-        img_filled = Image.merge("RGBA", (r, g, b, alpha_filled))
         
-        # Create a color layer for the holes
-        color_layer = Image.new("RGBA", img.size, border_rgba)
-        # Create a mask for the holes only
+        # Create a mask for the holes only (difference between filled and original alpha)
         holes_mask = Image.new("L", img.size, 0)
         holes_mask.paste(alpha_filled, (0, 0))
         holes_mask.paste(0, (0, 0), alpha)
         
-        # Composite the color layer with the original image
-        img = Image.alpha_composite(img_filled, color_layer)
+        # Create a color layer for the holes
+        holes_layer = Image.new("RGBA", img.size, border_rgba)
+        
+        # Composite the holes with the original image
+        img = Image.alpha_composite(img, holes_layer)
         img.putalpha(alpha_filled)
 
     # Create and smooth mask for white border
-    white_border = alpha.copy()
+    border_mask = alpha.copy()
     # Apply MaxFilter multiple times with decreasing size for smoothing
     filter_size = border_size + (1 - border_size % 2)
     for i in range(smoothing + 1):
         current_size = max(3, filter_size - (i * 2))
         if current_size % 2 == 0:
             current_size += 1
-        white_border = white_border.filter(ImageFilter.MaxFilter(current_size))
+        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
 
     # Create shadow mask if enabled
     if enable_shadow:
-        shadow = white_border.copy()
+        shadow = border_mask.copy()
         # Apply gaussian blur to soften shadow
         shadow = shadow.filter(ImageFilter.GaussianBlur(radius=border_size / 2))
 
@@ -214,12 +211,12 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Apply colored border
     border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
     border_layer.putalpha(Image.new("L", (final_width, final_height), 0))
-    border_layer.paste(border_rgba, paste_position, white_border)
+    border_layer.paste(border_rgba, paste_position, border_mask)
     result = Image.alpha_composite(result, border_layer)
 
-    # Apply original image
+    # Apply original image with holes filled
     img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
-    img_layer.paste(img, paste_position, img)
+    img_layer.paste(img, paste_position)
     result = Image.alpha_composite(result, img_layer)
 
     return result

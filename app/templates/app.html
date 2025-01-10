@@ -98,11 +98,23 @@
                     <!-- Border -->
                     <div class="space-y-4 mb-6">
                         <h3 class="text-lg font-medium text-gray-200">Border</h3>
-                        <div>
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="fill_holes" form="stickerForm" class="form-checkbox bg-gray-600 border-gray-500 rounded" checked>
-                                <span class="ml-2 text-gray-200">Fill holes in image</span>
-                            </label>
+                        <div class="flex flex-col space-y-4">
+                            <div>
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" name="fill_holes" form="stickerForm" class="form-checkbox bg-gray-600 border-gray-500 rounded" checked>
+                                    <span class="ml-2 text-gray-200">Fill holes in image</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-200 mb-2">Border color</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="color" name="border_color" form="stickerForm" value="#FFFFFF"
+                                           class="h-8 w-16 bg-gray-600 border border-gray-500 rounded cursor-pointer">
+                                    <input type="text" name="border_color_text" value="#FFFFFF"
+                                           class="w-24 px-2 py-1 bg-gray-600 text-gray-200 border border-gray-500 rounded"
+                                           oninput="document.querySelector('input[name=border_color]').value = this.value">
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-200 mb-2">Border thickness</label>
