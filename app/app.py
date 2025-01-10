@@ -127,7 +127,7 @@ def fill_interior_holes(alpha, color):
     holes = np.logical_and(~binary, ~exterior_mask)
     
     # Dilate the holes by 3 pixels
-    holes = ndimage.binary_dilation(holes, iterations=3)
+    holes = ndimage.binary_dilation(holes, iterations=10)
 
     # Create the output alpha channel
     result = alpha_np.copy()
