@@ -148,19 +148,33 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Calculate final dimensions (fixed size)
     final_width, final_height = size
 
-    # Calculate safety margins
-    shadow_margin = max(abs(shadow_offset_x), abs(shadow_offset_y)) + (border_size if enable_shadow else 0)
-    total_padding = padding_size + border_size + shadow_margin
+    # Calculate all margins needed
+    border_margin = border_size * 2  # Double the border size for both sides
+    shadow_margin = (max(abs(shadow_offset_x), abs(shadow_offset_y)) + border_size) * 2 if enable_shadow else 0
+    padding_margin = padding_size * 2  # Double the padding for both sides
+    
+    # Total margin needed
+    total_margin = border_margin + shadow_margin + padding_margin
 
     # Calculate maximum available size for logo
-    max_logo_width = final_width - (2 * total_padding)
-    max_logo_height = final_height - (2 * total_padding)
+    max_logo_width = final_width - total_margin
+    max_logo_height = final_height - total_margin
 
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
 
-    # Add initial padding
-    img = add_padding_to_image(img, padding_size)
+    # Create a new image with padding
+    padded_width = img.width + padding_margin + border_margin
+    padded_height = img.height + padding_margin + border_margin
+    padded_img = Image.new("RGBA", (padded_width, padded_height), (0, 0, 0, 0))
+    
+    # Calculate position to paste the original image (centered)
+    paste_x = (padded_width - img.width) // 2
+    paste_y = (padded_height - img.height) // 2
+    padded_img.paste(img, (paste_x, paste_y))
+    
+    # Update img to use the padded version
+    img = padded_img
 
     # Create mask from alpha channel
     alpha = img.split()[3]
@@ -178,7 +192,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
 
-    # Calculate center position for logo
+    # Calculate center position for the padded image
     center_x = (final_width - img.width) // 2
     center_y = (final_height - img.height) // 2
     paste_position = (center_x, center_y)
