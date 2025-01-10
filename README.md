@@ -25,10 +25,11 @@ A web application that allows you to create sticker effects for PNG images with 
 
 - Upload multiple PNG images at once
 - Customize border thickness and smoothing
+- Choose border and fill color (default: white)
 - Add customizable shadows with:
   - Adjustable intensity
   - X/Y offset controls
-- Fill holes in transparent areas for better sticker effect
+- Fill holes in transparent areas with border color
 - Choose output size (256px, 512px or 1024px)
 - Preview generated stickers in gallery
 - Download individual stickers or entire gallery as ZIP
@@ -49,9 +50,10 @@ Demo: [https://sticker.papamica.com](https://sticker.papamica.com)
 
 1. Click "Select PNG images" to choose one or more PNG files
 2. Adjust settings (optional):
+   - Border color (default: white)
    - Border thickness (5-50px)
    - Border smoothing (0-10)
-   - Fill holes in image (for better sticker effect)
+   - Fill holes in image with border color (enabled by default)
    - Shadow options (if enabled):
      - Intensity (0-255)
      - X/Y offset (-50px to +50px)

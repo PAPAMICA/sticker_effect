@@ -231,6 +231,31 @@
     <!-- Scripts -->
     <script src="//unpkg.com/alpinejs" defer></script>
     <script>
+        // Synchronisation des champs de couleur
+        document.addEventListener('DOMContentLoaded', function() {
+            const colorPicker = document.querySelector('input[name=border_color]');
+            const colorText = document.querySelector('input[name=border_color_text]');
+            
+            colorPicker.addEventListener('input', function(e) {
+                colorText.value = e.target.value.toUpperCase();
+            });
+            
+            colorText.addEventListener('input', function(e) {
+                let color = e.target.value;
+                if (color.startsWith('#')) {
+                    if (color.length === 7) {
+                        colorPicker.value = color;
+                    }
+                } else {
+                    if (color.length === 6) {
+                        color = '#' + color;
+                        colorPicker.value = color;
+                        e.target.value = color;
+                    }
+                }
+            });
+        });
+
         // Configuration de Fancybox
         document.addEventListener("htmx:afterSwap", function(evt) {
             // Met à jour la visibilité des boutons de la galerie

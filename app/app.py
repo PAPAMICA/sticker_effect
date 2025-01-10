@@ -93,8 +93,13 @@ def create_peeled_corner(size, corner_size=50, color=(200, 200, 200, 255)):
 
     return corner_with_shadow
 
-def fill_interior_holes(alpha):
-    """Fill interior holes (completely surrounded transparent areas) with white"""
+def hex_to_rgba(hex_color):
+    """Convert hex color to RGBA tuple"""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4)) + (255,)
+
+def fill_interior_holes(alpha, color):
+    """Fill interior holes with specified color"""
     # Convert alpha to numpy array
     alpha_np = np.array(alpha)
     
@@ -102,7 +107,6 @@ def fill_interior_holes(alpha):
     binary = alpha_np > 128
     
     # Label all connected components from the inverse of the binary image
-    # This will label all transparent regions
     labeled_array, num_features = ndimage.label(~binary)
     
     # Get the unique labels that touch the border
@@ -116,7 +120,7 @@ def fill_interior_holes(alpha):
     holes_mask = np.ones_like(alpha_np, dtype=np.uint8) * 255
     for label in range(1, num_features + 1):
         if label not in border_labels:
-            # This is a hole - fill it with white
+            # This is a hole - fill it with full opacity
             holes_mask[labeled_array == label] = 255
         else:
             # This is not a hole - keep original alpha
@@ -125,8 +129,12 @@ def fill_interior_holes(alpha):
     return Image.fromarray(holes_mask)
 
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
-                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True):
+                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True,
+                     border_color="#FFFFFF"):
     """Apply a sticker border effect to an image with advanced options"""
+    # Convert hex color to RGBA
+    border_rgba = hex_to_rgba(border_color)
+    
     # Open image
     img = Image.open(image).convert("RGBA")
 
@@ -151,14 +159,23 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     alpha = img.split()[3]
 
     if fill_holes:
-        # Fill interior holes with white
-        alpha_filled = fill_interior_holes(alpha)
+        # Fill interior holes with border color
+        alpha_filled = fill_interior_holes(alpha, border_rgba)
         # Create new image with filled alpha
         img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
         r, g, b, _ = img.split()
         img_filled = Image.merge("RGBA", (r, g, b, alpha_filled))
-        img = img_filled
-        alpha = alpha_filled
+        
+        # Create a color layer for the holes
+        color_layer = Image.new("RGBA", img.size, border_rgba)
+        # Create a mask for the holes only
+        holes_mask = Image.new("L", img.size, 0)
+        holes_mask.paste(alpha_filled, (0, 0))
+        holes_mask.paste(0, (0, 0), alpha)
+        
+        # Composite the color layer with the original image
+        img = Image.alpha_composite(img_filled, color_layer)
+        img.putalpha(alpha_filled)
 
     # Create and smooth mask for white border
     white_border = alpha.copy()
@@ -194,11 +211,11 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         shadow_layer.paste((0, 0, 0, shadow_intensity), shadow_position, shadow)
         result = Image.alpha_composite(result, shadow_layer)
 
-    # Apply white border
-    white_layer = Image.new("RGBA", (final_width, final_height), (255, 255, 255, 255))
-    white_layer.putalpha(Image.new("L", (final_width, final_height), 0))
-    white_layer.paste((255, 255, 255, 255), paste_position, white_border)
-    result = Image.alpha_composite(result, white_layer)
+    # Apply colored border
+    border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
+    border_layer.putalpha(Image.new("L", (final_width, final_height), 0))
+    border_layer.paste(border_rgba, paste_position, white_border)
+    result = Image.alpha_composite(result, border_layer)
 
     # Apply original image
     img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
@@ -222,6 +239,7 @@ def process():
     shadow_offset_x = int(request.form.get("shadow_offset_x", 0))
     shadow_offset_y = int(request.form.get("shadow_offset_y", 0))
     fill_holes = request.form.get("fill_holes") == "on"
+    border_color = request.form.get("border_color", "#FFFFFF")
 
     files = request.files.getlist("images")
     processed_files = []
@@ -250,7 +268,8 @@ def process():
             shadow_intensity=shadow_intensity,
             shadow_offset_x=shadow_offset_x,
             shadow_offset_y=shadow_offset_y,
-            fill_holes=fill_holes
+            fill_holes=fill_holes,
+            border_color=border_color
         )
         processed_img.save(output_path, format="PNG")
         processed_files.append(output_path)
