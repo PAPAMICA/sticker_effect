@@ -181,21 +181,35 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
     # Create and smooth mask for border
     border_mask = alpha.copy()
-    # Apply MaxFilter multiple times with decreasing size for smoothing
-    filter_size = border_size + (1 - border_size % 2)
-    for i in range(smoothing + 1):
-        current_size = max(3, filter_size - (i * 2))
-        if current_size % 2 == 0:
-            current_size += 1
-        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
+    
+    # Créer un masque plus grand pour la bordure
+    expanded_border_mask = Image.new("L", (
+        border_mask.width + border_size * 4,
+        border_mask.height + border_size * 4
+    ), 0)
+    
+    # Coller le masque original au centre
+    expanded_border_mask.paste(border_mask, (border_size * 2, border_size * 2))
+    border_mask = expanded_border_mask
+
+    # Nouvelle approche pour créer une bordure plus uniforme
+    # Appliquer d'abord un flou gaussien pour adoucir les bords
+    border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=smoothing))
+    
+    # Puis appliquer le MaxFilter avec une taille fixe pour créer la bordure
+    border_mask = border_mask.filter(ImageFilter.MaxFilter(size=border_size * 2 + 1))
+    
+    # Enfin, réappliquer un léger flou gaussien pour adoucir la bordure
+    border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=smoothing/2))
 
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
 
-    # Calculate center position for the padded image
-    center_x = (final_width - img.width) // 2
-    center_y = (final_height - img.height) // 2
-    paste_position = (center_x, center_y)
+    # Ajuster la position de collage pour tenir compte du masque étendu
+    paste_position = (
+        paste_x - border_size * 2,
+        paste_y - border_size * 2
+    )
 
     # Apply colored border first
     border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
@@ -203,15 +217,15 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     border_layer.paste(border_rgba, paste_position, border_mask)
     result = Image.alpha_composite(result, border_layer)
 
-    # Apply original image
+    # Apply original image (position inchangée)
     img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
-    img_layer.paste(img, paste_position)
+    img_layer.paste(img, (paste_x, paste_y))
     result = Image.alpha_composite(result, img_layer)
 
     if fill_holes:
-        # Create a new alpha channel that includes the border
-        combined_alpha = Image.new("L", img.size, 0)
-        combined_alpha.paste(alpha, (0, 0))
+        # Ajuster le masque combiné pour la nouvelle taille
+        combined_alpha = Image.new("L", expanded_border_mask.size, 0)
+        combined_alpha.paste(alpha, (border_size * 2, border_size * 2))
         combined_alpha.paste(255, (0, 0), border_mask)
 
         # Fill interior holes considering both the image and border
@@ -219,12 +233,11 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
         # Create a mask for the holes only
         holes_mask_data = np.array(alpha_filled) - np.array(combined_alpha)
-        # Binarize the mask - any positive difference becomes fully opaque
         holes_mask_data = (holes_mask_data > 0) * 255
         holes_mask = Image.fromarray(holes_mask_data.astype('uint8'))
 
         # Create a color layer for the holes
-        holes_layer = Image.new("RGBA", img.size, border_rgba)
+        holes_layer = Image.new("RGBA", expanded_border_mask.size, border_rgba)
         holes_layer.putalpha(holes_mask)
 
         # Create holes layer at final size
@@ -234,20 +247,18 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         # Composite the holes with the result
         result = Image.alpha_composite(result, final_holes_layer)
 
-    # Apply shadow if enabled (last step)
+    # Ajuster la position de l'ombre également
     if enable_shadow:
         shadow = border_mask.copy()
-        # Apply gaussian blur to soften shadow
         shadow = shadow.filter(ImageFilter.GaussianBlur(radius=border_size / 2))
 
         shadow_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         shadow_position = (
-            center_x + shadow_offset_x,
-            center_y + shadow_offset_y
+            paste_position[0] + shadow_offset_x,
+            paste_position[1] + shadow_offset_y
         )
         shadow_layer.paste((0, 0, 0, shadow_intensity), shadow_position, shadow)
 
-        # Create a new result image with shadow as background
         final_result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_result = Image.alpha_composite(final_result, shadow_layer)
         final_result = Image.alpha_composite(final_result, result)
