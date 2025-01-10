@@ -117,6 +117,30 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Create mask from alpha channel
     alpha = img.split()[3]
 
+    if fill_holes:
+        # Fill holes in the alpha channel using more aggressive morphological operations
+        kernel_size = max(3, min(img.width // 20, img.height // 20))
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+
+        # Create a binary mask from alpha channel
+        alpha_mask = alpha.point(lambda x: 255 if x > 128 else 0)
+        
+        # Apply closing operation (dilation followed by erosion)
+        alpha_filled = alpha_mask.filter(ImageFilter.MaxFilter(kernel_size))
+        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(kernel_size))
+        
+        # Apply opening operation (erosion followed by dilation) to clean up
+        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(3))
+        alpha_filled = alpha_filled.filter(ImageFilter.MaxFilter(3))
+        
+        # Create new image with filled alpha
+        img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        r, g, b, _ = img.split()
+        img_filled = Image.merge("RGBA", (r, g, b, alpha_filled))
+        img = img_filled
+        alpha = alpha_filled
+
     # Create and smooth mask for white border
     white_border = alpha.copy()
     # Apply MaxFilter multiple times with decreasing size for smoothing
@@ -126,20 +150,6 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         if current_size % 2 == 0:
             current_size += 1
         white_border = white_border.filter(ImageFilter.MaxFilter(current_size))
-
-    if fill_holes:
-        # Fill holes in the alpha channel
-        alpha_filled = alpha.copy()
-        # Apply MinFilter to fill small holes
-        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(3))
-        # Apply MaxFilter to restore edges
-        alpha_filled = alpha_filled.filter(ImageFilter.MaxFilter(3))
-        # Create new image with filled alpha
-        img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        img_filled.paste(img, (0, 0))
-        r, g, b, a = img_filled.split()
-        img_filled = Image.merge("RGBA", (r, g, b, alpha_filled))
-        img = img_filled
 
     # Create shadow mask if enabled
     if enable_shadow:
