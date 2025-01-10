@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for
-from PIL import Image, ImageOps, ImageFilter
+from PIL import Image, ImageOps, ImageFilter, ImageDraw
 import os
 from io import BytesIO
 from datetime import datetime
 import uuid
+import numpy as np
+from scipy import ndimage
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -91,8 +93,39 @@ def create_peeled_corner(size, corner_size=50, color=(200, 200, 200, 255)):
 
     return corner_with_shadow
 
+def fill_interior_holes(alpha):
+    """Fill interior holes (completely surrounded transparent areas) with white"""
+    # Convert alpha to numpy array
+    alpha_np = np.array(alpha)
+    
+    # Create binary mask (0 for transparent, 1 for non-transparent)
+    binary = alpha_np > 128
+    
+    # Label all connected components from the inverse of the binary image
+    # This will label all transparent regions
+    labeled_array, num_features = ndimage.label(~binary)
+    
+    # Get the unique labels that touch the border
+    border_labels = set()
+    border_labels.update(labeled_array[0, :])  # top border
+    border_labels.update(labeled_array[-1, :])  # bottom border
+    border_labels.update(labeled_array[:, 0])  # left border
+    border_labels.update(labeled_array[:, -1])  # right border
+    
+    # Create mask for holes (regions that don't touch the border)
+    holes_mask = np.ones_like(alpha_np, dtype=np.uint8) * 255
+    for label in range(1, num_features + 1):
+        if label not in border_labels:
+            # This is a hole - fill it with white
+            holes_mask[labeled_array == label] = 255
+        else:
+            # This is not a hole - keep original alpha
+            holes_mask[labeled_array == label] = alpha_np[labeled_array == label]
+    
+    return Image.fromarray(holes_mask)
+
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
-                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=False):
+                     shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True):
     """Apply a sticker border effect to an image with advanced options"""
     # Open image
     img = Image.open(image).convert("RGBA")
@@ -118,22 +151,8 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     alpha = img.split()[3]
 
     if fill_holes:
-        # Fill holes in the alpha channel using more aggressive morphological operations
-        kernel_size = max(3, min(img.width // 20, img.height // 20))
-        if kernel_size % 2 == 0:
-            kernel_size += 1
-
-        # Create a binary mask from alpha channel
-        alpha_mask = alpha.point(lambda x: 255 if x > 128 else 0)
-        
-        # Apply closing operation (dilation followed by erosion)
-        alpha_filled = alpha_mask.filter(ImageFilter.MaxFilter(kernel_size))
-        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(kernel_size))
-        
-        # Apply opening operation (erosion followed by dilation) to clean up
-        alpha_filled = alpha_filled.filter(ImageFilter.MinFilter(3))
-        alpha_filled = alpha_filled.filter(ImageFilter.MaxFilter(3))
-        
+        # Fill interior holes with white
+        alpha_filled = fill_interior_holes(alpha)
         # Create new image with filled alpha
         img_filled = Image.new("RGBA", img.size, (0, 0, 0, 0))
         r, g, b, _ = img.split()
