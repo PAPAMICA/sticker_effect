@@ -145,6 +145,9 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Open image
     img = Image.open(image).convert("RGBA")
 
+    # Add padding first
+    img = add_padding_to_image(img, padding_size)
+
     # Calculate final dimensions (fixed size)
     final_width, final_height = size
 
@@ -157,10 +160,6 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
-
-    # Add padding if needed (use padding_size parameter)
-    min_padding = max(padding_size, border_size)
-    img = add_padding_to_image(img, min_padding)
 
     # Create mask from alpha channel
     alpha = img.split()[3]
