@@ -156,9 +156,12 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Total margin needed
     total_margin = border_margin + shadow_margin + padding_margin
 
-    # Calculate maximum available size for logo
-    max_logo_width = final_width - total_margin
-    max_logo_height = final_height - total_margin
+    # Calculate the effective border size after MaxFilter operations
+    effective_border_size = border_size * (smoothing + 1)
+
+    # Calculate maximum available size for logo including border expansion
+    max_logo_width = final_width - total_margin - (effective_border_size * 2)
+    max_logo_height = final_height - total_margin - (effective_border_size * 2)
 
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
