@@ -125,7 +125,7 @@ def fill_interior_holes(alpha, color):
 
     # The holes are the transparent regions that are not part of the exterior
     holes = np.logical_and(~binary, ~exterior_mask)
-    
+
     # Dilate the holes by 3 pixels
     holes = ndimage.binary_dilation(holes, iterations=10)
 
@@ -207,6 +207,9 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         holes_mask = Image.new("L", img.size, 0)
         holes_mask_data = np.array(alpha_filled) - np.array(combined_alpha)
         holes_mask = Image.fromarray(holes_mask_data.astype('uint8'))
+        
+        # Apply a slight gaussian blur to the holes mask to smooth transitions
+        holes_mask = holes_mask.filter(ImageFilter.GaussianBlur(radius=1))
 
         # Create a color layer for the holes
         holes_layer = Image.new("RGBA", img.size, border_rgba)
