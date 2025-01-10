@@ -183,25 +183,29 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     center_y = (final_height - img.height) // 2
     paste_position = (center_x, center_y)
 
-    # Apply colored border
+    # Apply colored border first
     border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
     border_layer.putalpha(Image.new("L", (final_width, final_height), 0))
     border_layer.paste(border_rgba, paste_position, border_mask)
     result = Image.alpha_composite(result, border_layer)
 
+    # Apply original image
+    img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
+    img_layer.paste(img, paste_position)
+    result = Image.alpha_composite(result, img_layer)
+
     if fill_holes:
         # Create a new alpha channel that includes the border
         combined_alpha = Image.new("L", img.size, 0)
         combined_alpha.paste(alpha, (0, 0))
-        combined_alpha.paste(255, (0, 0), border_mask)
+        
+        # Fill interior holes without considering the border
+        alpha_filled = fill_interior_holes(alpha, border_rgba)
 
-        # Fill interior holes considering the border
-        alpha_filled = fill_interior_holes(combined_alpha, border_rgba)
-
-        # Create a mask for the holes only (difference between filled and original combined alpha)
+        # Create a mask for the holes only (difference between filled and original alpha)
         holes_mask = Image.new("L", img.size, 0)
         holes_mask.paste(alpha_filled, (0, 0))
-        holes_mask.paste(0, (0, 0), combined_alpha)
+        holes_mask.paste(0, (0, 0), alpha)
 
         # Create a color layer for the holes
         holes_layer = Image.new("RGBA", img.size, border_rgba)
@@ -213,13 +217,8 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         final_holes_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_holes_layer.paste(holes_layer, paste_position)
 
-        # Composite the holes with the result
+        # Composite the holes with the result (on top of everything except shadow)
         result = Image.alpha_composite(result, final_holes_layer)
-
-    # Apply original image
-    img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
-    img_layer.paste(img, paste_position)
-    result = Image.alpha_composite(result, img_layer)
 
     # Apply shadow if enabled (last step)
     if enable_shadow:
