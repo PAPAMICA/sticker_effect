@@ -181,13 +181,15 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
     # Create and smooth mask for border
     border_mask = alpha.copy()
-    # Apply MaxFilter multiple times with decreasing size for smoothing
-    filter_size = border_size * 2  # Double the filter size for better border coverage
-    for i in range(smoothing + 1):
-        current_size = max(3, filter_size - (i * 2))
-        if current_size % 2 == 0:
-            current_size += 1
-        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
+
+    # Appliquer un MaxFilter pour étendre la forme
+    border_mask = border_mask.filter(ImageFilter.MaxFilter(size=border_size * 2 + 1))
+    
+    # Appliquer un MinFilter pour uniformiser la bordure
+    border_mask = border_mask.filter(ImageFilter.MinFilter(size=border_size * 2 - 1))
+    
+    # Réappliquer un MaxFilter pour finaliser la forme
+    border_mask = border_mask.filter(ImageFilter.MaxFilter(size=3))
 
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
