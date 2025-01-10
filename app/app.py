@@ -143,7 +143,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
                      border_color="#FFFFFF", padding_size=20):
     """Apply a sticker border effect to an image with advanced options"""
     debug_steps = []
-    
+
     # Convert hex color to RGBA
     border_rgba = hex_to_rgba(border_color)
 
@@ -190,22 +190,38 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Create mask from alpha channel
     alpha = img.split()[3]
 
-    # Create and smooth mask for border
+    # Create and smooth mask for border with rounded corners
     border_mask = alpha.copy()
-    # Apply MaxFilter multiple times with decreasing size for smoothing
-    filter_size = border_size + (1 - border_size % 2)
-    for i in range(smoothing + 1):
-        current_size = max(3, filter_size - (i * 2))
-        if current_size % 2 == 0:
-            current_size += 1
-        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
+
+    # Create a circular kernel for corner rounding
+    kernel_size = border_size * 2
+    kernel = Image.new('L', (kernel_size, kernel_size), 0)
+    draw = ImageDraw.Draw(kernel)
+    draw.ellipse([0, 0, kernel_size-1, kernel_size-1], fill=255)
+    kernel = np.array(kernel)
+
+    # Convert border mask to numpy array
+    mask_array = np.array(border_mask)
+
+    # Apply MaxFilter for initial border expansion
+    mask_array = ndimage.maximum_filter(mask_array, size=border_size)
+
+    # Apply circular kernel to round corners
+    mask_array = ndimage.maximum_filter(mask_array, footprint=kernel)
+
+    # Convert back to PIL Image
+    border_mask = Image.fromarray(mask_array)
+
+    # Apply additional smoothing if needed
+    for i in range(smoothing):
+        border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=1))
+
     debug_steps.append(("Masque de bordure", border_mask))
 
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
 
     # Calculate center position for the padded image
-    # Ensure the image is centered in the final size with proper margins
     center_x = max(0, (final_width - padded_width) // 2)
     center_y = max(0, (final_height - padded_height) // 2)
     paste_position = (center_x, center_y)
@@ -334,24 +350,24 @@ def process():
             border_color=border_color,
             padding_size=padding_size
         )
-        
+
         # Sauvegarder l'image traitée
         processed_img.save(output_path, format="PNG")
         processed_files.append(output_path)
         dimensions[output_path] = processed_img.size
-        
+
         if DEBUG_MODE:
             # Sauvegarder chaque étape de debug
             debug_folder = os.path.join(PROCESSED_FOLDER, "debug", new_name.replace(".png", ""))
             os.makedirs(debug_folder, exist_ok=True)
-            
+
             for i, (step_name, step_img) in enumerate(debug_steps):
                 debug_path = os.path.join(debug_folder, f"{i}_{step_name}.png")
                 step_img.save(debug_path, format="PNG")
                 debug_steps_all.append((step_name, f"/download/{debug_path}"))
 
-    return render_template("gallery.html", 
-                         files=processed_files, 
+    return render_template("gallery.html",
+                         files=processed_files,
                          dimensions=dimensions,
                          debug_steps=debug_steps_all if DEBUG_MODE else None)
 
@@ -421,11 +437,11 @@ def index():
                 ("Après détection", detected_image),
                 # Ajoutez d'autres étapes selon votre traitement
             ]
-        
-        return render_template('app.html', 
+
+        return render_template('app.html',
                              result_image=result_image_path,
                              debug_steps=debug_steps if DEBUG_MODE else None)
-    
+
     return render_template('app.html', debug_mode=DEBUG_MODE)
 
 if __name__ == "__main__":
