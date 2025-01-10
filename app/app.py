@@ -149,7 +149,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     final_width, final_height = size
 
     # Calculate all margins needed
-    border_margin = border_size * 4  # Quadruple the border size to ensure enough space
+    border_margin = border_size * 2  # Double the border size for both sides
     shadow_margin = (max(abs(shadow_offset_x), abs(shadow_offset_y)) + border_size) * 2 if enable_shadow else 0
     padding_margin = padding_size * 2  # Double the padding for both sides
 
@@ -163,9 +163,9 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
 
-    # Create a new image with padding
-    padded_width = img.width + padding_margin + border_margin
-    padded_height = img.height + padding_margin + border_margin
+    # Create a new image with padding and border
+    padded_width = img.width + padding_margin + border_margin + shadow_margin
+    padded_height = img.height + padding_margin + border_margin + shadow_margin
     padded_img = Image.new("RGBA", (padded_width, padded_height), (0, 0, 0, 0))
 
     # Calculate position to paste the original image (centered)
@@ -181,27 +181,25 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
     # Create and smooth mask for border
     border_mask = alpha.copy()
-
-    # Appliquer un MaxFilter pour étendre la forme
-    border_mask = border_mask.filter(ImageFilter.MaxFilter(size=border_size * 2 + 1))
-    
-    # Appliquer un MinFilter pour uniformiser la bordure
-    border_mask = border_mask.filter(ImageFilter.MinFilter(size=border_size * 2 - 1))
-    
-    # Réappliquer un MaxFilter pour finaliser la forme
-    border_mask = border_mask.filter(ImageFilter.MaxFilter(size=3))
+    # Apply MaxFilter multiple times with decreasing size for smoothing
+    filter_size = border_size + (1 - border_size % 2)
+    for i in range(smoothing + 1):
+        current_size = max(3, filter_size - (i * 2))
+        if current_size % 2 == 0:
+            current_size += 1
+        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
 
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
 
     # Calculate center position for the padded image
-    center_x = (final_width - img.width) // 2
-    center_y = (final_height - img.height) // 2
+    # Ensure the image is centered in the final size with proper margins
+    center_x = max(0, (final_width - padded_width) // 2)
+    center_y = max(0, (final_height - padded_height) // 2)
     paste_position = (center_x, center_y)
 
     # Apply colored border first
-    border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
-    border_layer.putalpha(Image.new("L", (final_width, final_height), 0))
+    border_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
     border_layer.paste(border_rgba, paste_position, border_mask)
     result = Image.alpha_composite(result, border_layer)
 
