@@ -98,27 +98,29 @@ def hex_to_rgba(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4)) + (255,)
 
-def fill_interior_holes(alpha, color):
-    """Fill interior holes with specified color"""
+def fill_interior_holes(alpha, color, border_size=10):
+    """Fill interior holes with specified color, taking border size into account"""
     # Convert alpha to numpy array
     alpha_np = np.array(alpha)
     
     # Create binary mask (0 for transparent, 1 for non-transparent)
     binary = alpha_np > 128
     
+    # Dilate the binary mask to account for the border that will be added
+    structure = ndimage.generate_binary_structure(2, 2)  # 8-connectivity
+    dilated_binary = ndimage.binary_dilation(binary, structure=structure, iterations=border_size)
+    
     # Create a mask for the exterior (flood fill from the borders)
-    exterior_mask = np.zeros_like(binary, dtype=bool)
-    exterior_mask[0, :] = ~binary[0, :]  # top edge
-    exterior_mask[-1, :] = ~binary[-1, :]  # bottom edge
-    exterior_mask[:, 0] = ~binary[:, 0]  # left edge
-    exterior_mask[:, -1] = ~binary[:, -1]  # right edge
+    exterior_mask = np.zeros_like(dilated_binary, dtype=bool)
+    exterior_mask[0, :] = ~dilated_binary[0, :]  # top edge
+    exterior_mask[-1, :] = ~dilated_binary[-1, :]  # bottom edge
+    exterior_mask[:, 0] = ~dilated_binary[:, 0]  # left edge
+    exterior_mask[:, -1] = ~dilated_binary[:, -1]  # right edge
     
     # Flood fill from the borders to identify exterior transparent regions
-    from scipy import ndimage
-    structure = ndimage.generate_binary_structure(2, 2)  # 8-connectivity
-    exterior_mask = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~binary)
-    while np.any(np.logical_and(~binary, ~exterior_mask)):
-        new_exterior = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~binary)
+    exterior_mask = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~dilated_binary)
+    while np.any(np.logical_and(~dilated_binary, ~exterior_mask)):
+        new_exterior = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~dilated_binary)
         if np.array_equal(new_exterior, exterior_mask):
             break
         exterior_mask = new_exterior
@@ -163,8 +165,8 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     alpha = img.split()[3]
 
     if fill_holes:
-        # Fill interior holes with border color
-        alpha_filled = fill_interior_holes(alpha, border_rgba)
+        # Fill interior holes with border color, considering border size
+        alpha_filled = fill_interior_holes(alpha, border_rgba, border_size)
         
         # Create a mask for the holes only (difference between filled and original alpha)
         holes_mask = Image.new("L", img.size, 0)
