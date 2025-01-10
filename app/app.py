@@ -195,17 +195,13 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     result = Image.alpha_composite(result, img_layer)
 
     if fill_holes:
-        # Create a new alpha channel that includes the border
-        combined_alpha = Image.new("L", img.size, 0)
-        combined_alpha.paste(alpha, (0, 0))
-        
         # Fill interior holes without considering the border
         alpha_filled = fill_interior_holes(alpha, border_rgba)
 
-        # Create a mask for the holes only (difference between filled and original alpha)
+        # Create a mask for the holes only
         holes_mask = Image.new("L", img.size, 0)
-        holes_mask.paste(alpha_filled, (0, 0))
-        holes_mask.paste(0, (0, 0), alpha)
+        holes_mask_data = np.array(alpha_filled) - np.array(alpha)
+        holes_mask = Image.fromarray(holes_mask_data.astype('uint8'))
 
         # Create a color layer for the holes
         holes_layer = Image.new("RGBA", img.size, border_rgba)
