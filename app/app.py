@@ -106,53 +106,31 @@ def fill_interior_holes(alpha, color):
     # Create binary mask (0 for transparent, 1 for non-transparent)
     binary = alpha_np > 128
     
-<<<<<<< HEAD
-    # Label all connected components in the transparent regions
-    labeled_array, num_features = ndimage.label(~binary)
+    # Create a mask for the exterior (flood fill from the borders)
+    exterior_mask = np.zeros_like(binary, dtype=bool)
+    exterior_mask[0, :] = ~binary[0, :]  # top edge
+    exterior_mask[-1, :] = ~binary[-1, :]  # bottom edge
+    exterior_mask[:, 0] = ~binary[:, 0]  # left edge
+    exterior_mask[:, -1] = ~binary[:, -1]  # right edge
     
-    # Find which components touch the border
-    border_labels = set(labeled_array[0, :])  # top edge
-    border_labels.update(labeled_array[-1, :])  # bottom edge
-    border_labels.update(labeled_array[:, 0])  # left edge
-    border_labels.update(labeled_array[:, -1])  # right edge
-    border_labels.discard(0)  # 0 is not a valid label
+    # Flood fill from the borders to identify exterior transparent regions
+    from scipy import ndimage
+    structure = ndimage.generate_binary_structure(2, 2)  # 8-connectivity
+    exterior_mask = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~binary)
+    while np.any(np.logical_and(~binary, ~exterior_mask)):
+        new_exterior = ndimage.binary_dilation(exterior_mask, structure=structure, mask=~binary)
+        if np.array_equal(new_exterior, exterior_mask):
+            break
+        exterior_mask = new_exterior
     
-    # Create mask for holes
-    holes_mask = np.zeros_like(alpha_np, dtype=bool)
-    
-    # For each labeled region that doesn't touch the border, mark it as a hole
-    for label in range(1, num_features + 1):
-        if label not in border_labels:
-            holes_mask[labeled_array == label] = True
+    # The holes are the transparent regions that are not part of the exterior
+    holes = np.logical_and(~binary, ~exterior_mask)
     
     # Create the output alpha channel
     result = alpha_np.copy()
-    result[holes_mask] = 255  # Fill holes with full opacity
+    result[holes] = 255  # Fill holes with full opacity
     
     return Image.fromarray(result)
-=======
-    # Label all connected components from the inverse of the binary image
-    labeled_array, num_features = ndimage.label(~binary)
-    
-    # Get the unique labels that touch the border
-    border_labels = set()
-    border_labels.update(labeled_array[0, :])  # top border
-    border_labels.update(labeled_array[-1, :])  # bottom border
-    border_labels.update(labeled_array[:, 0])  # left border
-    border_labels.update(labeled_array[:, -1])  # right border
-    
-    # Create mask for holes (regions that don't touch the border)
-    holes_mask = np.ones_like(alpha_np, dtype=np.uint8) * 255
-    for label in range(1, num_features + 1):
-        if label not in border_labels:
-            # This is a hole - fill it with full opacity
-            holes_mask[labeled_array == label] = 255
-        else:
-            # This is not a hole - keep original alpha
-            holes_mask[labeled_array == label] = alpha_np[labeled_array == label]
-    
-    return Image.fromarray(holes_mask)
->>>>>>> parent of 190b9d0... 🐛 fix: hole
 
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
                      shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True,
@@ -184,6 +162,24 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Create mask from alpha channel
     alpha = img.split()[3]
 
+    if fill_holes:
+        # Fill interior holes with border color
+        alpha_filled = fill_interior_holes(alpha, border_rgba)
+        
+        # Create a mask for the holes only (difference between filled and original alpha)
+        holes_mask = Image.new("L", img.size, 0)
+        holes_mask.paste(alpha_filled, (0, 0))
+        holes_mask.paste(0, (0, 0), alpha)
+        
+        # Create a color layer for the holes
+        holes_layer = Image.new("RGBA", img.size, border_rgba)
+        
+        # Apply the holes mask to the color layer
+        holes_layer.putalpha(holes_mask)
+        
+        # Composite the holes with the original image
+        img = Image.alpha_composite(img, holes_layer)
+
     # Create and smooth mask for border
     border_mask = alpha.copy()
     # Apply MaxFilter multiple times with decreasing size for smoothing
@@ -193,50 +189,6 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         if current_size % 2 == 0:
             current_size += 1
         border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
-
-    # Create temporary image with border to detect holes
-    temp_img = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    temp_img.paste(img, (0, 0))
-    temp_border = Image.new("RGBA", img.size, border_rgba)
-    temp_border.putalpha(border_mask)
-    temp_img = Image.alpha_composite(temp_img, temp_border)
-
-    if fill_holes:
-        # Get alpha channel from the image with border
-        temp_alpha = temp_img.split()[3]
-        
-        # Fill interior holes with border color
-        alpha_filled = fill_interior_holes(temp_alpha, border_rgba)
-        
-        # Create a mask for the holes only (difference between filled and original alpha)
-        holes_mask = Image.new("L", img.size, 0)
-        holes_mask.paste(alpha_filled, (0, 0))
-        holes_mask.paste(0, (0, 0), temp_alpha)
-        
-        # Create a color layer for the holes
-        holes_layer = Image.new("RGBA", img.size, border_rgba)
-        
-<<<<<<< HEAD
-        # Apply the holes mask to the color layer
-        holes_layer.putalpha(holes_mask)
-        
-        # Composite the holes with the temporary image
-        temp_img = Image.alpha_composite(temp_img, holes_layer)
-=======
-        # Composite the holes with the original image
-        img = Image.alpha_composite(img, holes_layer)
-        img.putalpha(alpha_filled)
-
-    # Create and smooth mask for white border
-    border_mask = alpha.copy()
-    # Apply MaxFilter multiple times with decreasing size for smoothing
-    filter_size = border_size + (1 - border_size % 2)
-    for i in range(smoothing + 1):
-        current_size = max(3, filter_size - (i * 2))
-        if current_size % 2 == 0:
-            current_size += 1
-        border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
->>>>>>> parent of 190b9d0... 🐛 fix: hole
 
     # Create shadow mask if enabled
     if enable_shadow:
@@ -262,9 +214,15 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         shadow_layer.paste((0, 0, 0, shadow_intensity), shadow_position, shadow)
         result = Image.alpha_composite(result, shadow_layer)
 
-    # Apply final image with border and filled holes
+    # Apply colored border
+    border_layer = Image.new("RGBA", (final_width, final_height), border_rgba)
+    border_layer.putalpha(Image.new("L", (final_width, final_height), 0))
+    border_layer.paste(border_rgba, paste_position, border_mask)
+    result = Image.alpha_composite(result, border_layer)
+
+    # Apply original image with holes filled
     img_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
-    img_layer.paste(temp_img, paste_position)
+    img_layer.paste(img, paste_position)
     result = Image.alpha_composite(result, img_layer)
 
     return result
