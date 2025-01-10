@@ -72,6 +72,30 @@
                     </button>
                 </div>
 
+                <div class="form-group">
+                    <label for="size">Taille de l'image</label>
+                    <select class="form-control" id="size" name="size">
+                        <option value="256">256x256</option>
+                        <option value="512" selected>512x512</option>
+                        <option value="1024">1024x1024</option>
+                        <option value="1536">1536x1536</option>
+                        <option value="2048">2048x2048</option>
+                        <optgroup label="Réseaux sociaux">
+                            <option value="instagram_story">Instagram Story (1080x1920)</option>
+                            <option value="instagram_post">Instagram Post (1080x1080)</option>
+                            <option value="facebook_post">Facebook Post (1200x630)</option>
+                            <option value="twitter_post">Twitter Post (1200x675)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="padding_size">Espace autour du logo (px)</label>
+                    <input type="range" class="form-control-range" id="padding_size" name="padding_size" 
+                           min="0" max="100" value="20" oninput="updatePaddingValue(this.value)">
+                    <small class="form-text text-muted">Valeur: <span id="padding_value">20</span>px</small>
+                </div>
+
                 <button type="submit"
                         class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ring-offset-gray-700">
                     Generate Stickers
@@ -422,6 +446,10 @@
                 console.error('Error:', error);
                 alert('Error downloading images');
             }
+        }
+
+        function updatePaddingValue(val) {
+            document.getElementById('padding_value').textContent = val;
         }
     </script>
 </body>

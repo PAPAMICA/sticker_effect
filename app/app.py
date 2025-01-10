@@ -137,7 +137,7 @@ def fill_interior_holes(alpha, color):
 
 def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, enable_shadow=True,
                      shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True,
-                     border_color="#FFFFFF"):
+                     border_color="#FFFFFF", padding_size=20):
     """Apply a sticker border effect to an image with advanced options"""
     # Convert hex color to RGBA
     border_rgba = hex_to_rgba(border_color)
@@ -158,8 +158,8 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
 
-    # Add padding if needed (minimum 20px or border_size if larger)
-    min_padding = max(20, border_size)
+    # Add padding if needed (use padding_size parameter)
+    min_padding = max(padding_size, border_size)
     img = add_padding_to_image(img, min_padding)
 
     # Create mask from alpha channel
@@ -249,7 +249,21 @@ def upload():
 @app.route("/process", methods=["POST"])
 def process():
     border_size = int(request.form.get("border_size", 10))
-    max_size = int(request.form.get("size", 512))
+    size_option = request.form.get("size", "512")
+    # Size options dictionary
+    size_options = {
+        "256": (256, 256),
+        "512": (512, 512),
+        "1024": (1024, 1024),
+        "1536": (1536, 1536),
+        "2048": (2048, 2048),
+        "instagram_story": (1080, 1920),
+        "instagram_post": (1080, 1080),
+        "facebook_post": (1200, 630),
+        "twitter_post": (1200, 675)
+    }
+    size = size_options.get(size_option, (512, 512))
+    
     smoothing = int(request.form.get("smoothing", 3))
     enable_shadow = request.form.get("enable_shadow") == "on"
     shadow_intensity = int(request.form.get("shadow_intensity", 100))
@@ -257,6 +271,7 @@ def process():
     shadow_offset_y = int(request.form.get("shadow_offset_y", 0))
     fill_holes = request.form.get("fill_holes") == "on"
     border_color = request.form.get("border_color", "#FFFFFF")
+    padding_size = int(request.form.get("padding_size", 20))
 
     files = request.files.getlist("images")
     processed_files = []
@@ -279,14 +294,15 @@ def process():
         processed_img = sticker_border_effect(
             file,
             border_size=border_size,
-            size=(max_size, max_size),
+            size=size,
             smoothing=smoothing,
             enable_shadow=enable_shadow,
             shadow_intensity=shadow_intensity,
             shadow_offset_x=shadow_offset_x,
             shadow_offset_y=shadow_offset_y,
             fill_holes=fill_holes,
-            border_color=border_color
+            border_color=border_color,
+            padding_size=padding_size
         )
         processed_img.save(output_path, format="PNG")
         processed_files.append(output_path)
