@@ -148,19 +148,19 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Calculate final dimensions (fixed size)
     final_width, final_height = size
 
-    # Calculate maximum available size for logo considering margins
-    shadow_size = border_size // 2
-    padding = max(abs(shadow_offset_x), abs(shadow_offset_y))
-    # Augmenter la marge totale pour s'assurer que la bordure ne sera pas rognée
-    total_margin = 2 * (border_size + shadow_size + padding + padding_size)
-    max_logo_width = final_width - total_margin
-    max_logo_height = final_height - total_margin
+    # Calculate safety margins
+    shadow_margin = max(abs(shadow_offset_x), abs(shadow_offset_y)) + (border_size if enable_shadow else 0)
+    total_padding = padding_size + border_size + shadow_margin
+
+    # Calculate maximum available size for logo
+    max_logo_width = final_width - (2 * total_padding)
+    max_logo_height = final_height - (2 * total_padding)
 
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
 
-    # Add padding after resize
-    img = add_padding_to_image(img, padding_size + border_size)
+    # Add initial padding
+    img = add_padding_to_image(img, padding_size)
 
     # Create mask from alpha channel
     alpha = img.split()[3]
