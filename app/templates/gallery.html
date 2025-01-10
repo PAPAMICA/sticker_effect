@@ -35,3 +35,20 @@
 </div>
 {% endfor %}
 {% endif %}
+
+{% if debug_steps %}
+<div class="debug-panel mt-8">
+    <h3 class="text-2xl font-bold text-white mb-4">Mode Debug - Étapes de traitement</h3>
+    <div class="debug-steps grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for step_name, step_image in debug_steps %}
+        <div class="debug-step bg-gray-700 rounded-lg p-4">
+            <h4 class="text-lg font-medium text-white mb-2">{{ step_name }}</h4>
+            <a href="{{ step_image }}" data-fancybox="debug-gallery">
+                <img src="{{ step_image }}" alt="{{ step_name }}" 
+                     class="w-full h-auto rounded-lg shadow-lg hover:opacity-90 transition-opacity">
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

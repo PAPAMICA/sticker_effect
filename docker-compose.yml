@@ -9,6 +9,7 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app.py
+      - DEBUG_MODE=true
     restart: always
     labels:
       - "autoupdate=monitor" # https://github.com/PAPAMICA/container-updater

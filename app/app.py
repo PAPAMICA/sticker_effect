@@ -16,6 +16,9 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 # File to store view count
 VIEWS_FILE = "views.txt"
 
+# Variable globale pour le mode debug
+DEBUG_MODE = False
+
 def get_views():
     """Get the number of views"""
     try:
@@ -139,11 +142,14 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
                      shadow_intensity=100, shadow_offset_x=0, shadow_offset_y=0, fill_holes=True,
                      border_color="#FFFFFF", padding_size=20):
     """Apply a sticker border effect to an image with advanced options"""
+    debug_steps = []
+    
     # Convert hex color to RGBA
     border_rgba = hex_to_rgba(border_color)
 
     # Open image
     img = Image.open(image).convert("RGBA")
+    debug_steps.append(("Image originale", img))
 
     # Calculate final dimensions (fixed size)
     final_width, final_height = size
@@ -165,6 +171,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
     # Resize image preserving aspect ratio to fit available space
     img.thumbnail((max_logo_width, max_logo_height), Image.LANCZOS)
+    debug_steps.append(("Après redimensionnement", img))
 
     # Create a new image with padding and border
     padded_width = img.width + padding_margin + border_margin + shadow_margin
@@ -175,6 +182,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     paste_x = (padded_width - img.width) // 2
     paste_y = (padded_height - img.height) // 2
     padded_img.paste(img, (paste_x, paste_y))
+    debug_steps.append(("Après ajout du padding", padded_img))
 
     # Update img to use the padded version
     img = padded_img
@@ -191,6 +199,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         if current_size % 2 == 0:
             current_size += 1
         border_mask = border_mask.filter(ImageFilter.MaxFilter(current_size))
+    debug_steps.append(("Masque de bordure", border_mask))
 
     # Create final image with specified fixed size
     result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
@@ -204,6 +213,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
     # Apply colored border first
     border_layer = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
     border_layer.paste(border_rgba, paste_position, border_mask)
+    debug_steps.append(("Après ajout de la bordure", border_layer))
     result = Image.alpha_composite(result, border_layer)
 
     # Apply original image
@@ -236,6 +246,7 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
 
         # Composite the holes with the result
         result = Image.alpha_composite(result, final_holes_layer)
+        debug_steps.append(("Après remplissage des trous", result))
 
     # Apply shadow if enabled (last step)
     if enable_shadow:
@@ -254,9 +265,10 @@ def sticker_border_effect(image, border_size=10, size=(512, 512), smoothing=3, e
         final_result = Image.new("RGBA", (final_width, final_height), (0, 0, 0, 0))
         final_result = Image.alpha_composite(final_result, shadow_layer)
         final_result = Image.alpha_composite(final_result, result)
-        return final_result
+        debug_steps.append(("Après ajout de l'ombre", final_result))
+        return final_result, debug_steps
 
-    return result
+    return result, debug_steps
 
 @app.route("/")
 def upload():
@@ -293,6 +305,7 @@ def process():
     files = request.files.getlist("images")
     processed_files = []
     dimensions = {}
+    debug_steps_all = []  # Pour stocker les étapes de debug de toutes les images
 
     for file in files:
         if file.filename == "":
@@ -307,8 +320,8 @@ def process():
         new_name = generate_unique_filename(file.filename)
         output_path = os.path.join(PROCESSED_FOLDER, new_name)
 
-        # Apply effect and save image
-        processed_img = sticker_border_effect(
+        # Modifier l'appel à sticker_border_effect pour récupérer les étapes de debug
+        processed_img, debug_steps = sticker_border_effect(
             file,
             border_size=border_size,
             size=size,
@@ -321,11 +334,26 @@ def process():
             border_color=border_color,
             padding_size=padding_size
         )
+        
+        # Sauvegarder l'image traitée
         processed_img.save(output_path, format="PNG")
         processed_files.append(output_path)
         dimensions[output_path] = processed_img.size
+        
+        if DEBUG_MODE:
+            # Sauvegarder chaque étape de debug
+            debug_folder = os.path.join(PROCESSED_FOLDER, "debug", new_name.replace(".png", ""))
+            os.makedirs(debug_folder, exist_ok=True)
+            
+            for i, (step_name, step_img) in enumerate(debug_steps):
+                debug_path = os.path.join(debug_folder, f"{i}_{step_name}.png")
+                step_img.save(debug_path, format="PNG")
+                debug_steps_all.append((step_name, f"/download/{debug_path}"))
 
-    return render_template("gallery.html", files=processed_files, dimensions=dimensions)
+    return render_template("gallery.html", 
+                         files=processed_files, 
+                         dimensions=dimensions,
+                         debug_steps=debug_steps_all if DEBUG_MODE else None)
 
 @app.route("/download/<path:filename>")
 def download(filename):
@@ -380,6 +408,25 @@ def clear_all():
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        # Stocker les étapes intermédiaires si le mode debug est activé
+        debug_steps = []
+        if DEBUG_MODE:
+            debug_steps = [
+                ("Image originale", image),
+                ("Après prétraitement", preprocessed_image),
+                ("Après détection", detected_image),
+                # Ajoutez d'autres étapes selon votre traitement
+            ]
+        
+        return render_template('app.html', 
+                             result_image=result_image_path,
+                             debug_steps=debug_steps if DEBUG_MODE else None)
+    
+    return render_template('app.html', debug_mode=DEBUG_MODE)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)

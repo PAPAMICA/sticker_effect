@@ -40,6 +40,27 @@
         .fancybox__container {
             --fancybox-bg: rgba(24, 24, 27, 0.95);
         }
+        .debug-panel {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .debug-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .debug-step {
+            text-align: center;
+        }
+        .debug-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="bg-gray-800 min-h-screen flex flex-col">
@@ -228,6 +249,22 @@
                 </button>
             </div>
         </div>
+
+        {% if debug_mode %}
+        <div class="debug-panel">
+            <h3>Mode Debug - Étapes de traitement</h3>
+            {% if debug_steps %}
+                <div class="debug-steps">
+                    {% for step_name, step_image in debug_steps %}
+                    <div class="debug-step">
+                        <h4>{{ step_name }}</h4>
+                        <img src="{{ step_image }}" alt="{{ step_name }}" class="debug-image">
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <!-- Footer -->
