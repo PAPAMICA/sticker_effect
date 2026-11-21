@@ -1,17 +1,12 @@
-FROM python:3.9-slim
+FROM python:3.14-slim
 
 WORKDIR /app
-
-# Installation des dépendances système
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copie des fichiers de l'application
 COPY app/ .
 COPY requirements.txt .
 
-# Installation des dépendances Python
+# Installation des dépendances Python (wheels binaires, pas de compilateur)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Exposition du port
